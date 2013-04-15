@@ -194,6 +194,7 @@ function dw_tweet_messages( $tweets, $opts, $prevmessages = array() ) {
 
 function dw_tweet_loop( $tweets = array(), $opts = array() ) {
 
+	$limit = 5; // test
 	foreach ( $tweets as $tweet ) {
 
 		if ( $opts['date-filter'] > strtotime( $tweet->created_at ) ) {
@@ -229,6 +230,8 @@ function dw_tweet_loop( $tweets = array(), $opts = array() ) {
 		}
 
 		$messages['messages'][] = dw_tweet_save( $tweet, $opts );
+		
+		if ( --$limit <= 0 ) break; // test
 	}
 	return !empty( $messages ) ? $messages : array();
 }
@@ -251,6 +254,9 @@ function dw_tweet_save( $tweet, $opts = array() ) {
 	  'post_title' => date( 'Y-m-d H:i:s', strtotime( $tweet->created_at ) ),
 	  'post_type' => $opts['post-type'],
 	);
+
+	$post = apply_filters( 'dw_twitter_post_presave', $post );
+
 	$new_post_id = wp_insert_post( $post, true );
 
 	apply_filters( 'dw_twitter_post_save', $new_post_id, $tweet );
@@ -334,7 +340,8 @@ function dw_tweet_authenticate( $user, $return = true ) {
 
 	$feed_url = 'http://twitter.com/statuses/user_timeline/'. $user .'.rss';
 	$feed_url = 'https://api.twitter.com/1/statuses/user_timeline.json?screen_name='. $user .'&count=200';
-	$response = wp_remote_get( $feed_url );
+	// $response = wp_remote_get( $feed_url );
+	$response = wp_remote_get( $feed_url, array( 'sslverify' => false ) ); // test
 	// wp_die( '<pre>'. htmlentities( print_r( $response, true ) ) .'</pre>' );
 	$body = wp_remote_retrieve_body( $response );
 	// $body = simplexml_load_string( $body, "SimpleXMLElement", LIBXML_NOCDATA );
@@ -356,4 +363,34 @@ function dw_tweet_authenticate( $user, $return = true ) {
 		'noauth' => $noauth,
 	);
 
+}
+
+add_filter('dw_twitter_post_presave', 'dw_format_tweet_post');
+function dw_format_tweet_post( $post ) {
+	/*
+		$post = array(
+		'post_author' => $opts['author'],
+		'post_content' => iconv( "UTF-8", "ISO-8859-1//IGNORE", $tweet->text ),
+		'post_date' => date( 'Y-m-d H:i:s', strtotime( $tweet->created_at ) ),
+		'post_date_gmt' => date( 'Y-m-d H:i:s', strtotime( $tweet->created_at ) ),
+		'post_status' => $opts['draft'],
+		'post_title' => date( 'Y-m-d H:i:s', strtotime( $tweet->created_at ) ),
+		'post_type' => $opts['post-type'],
+		);
+	*/
+	$content = $post['post_content'];
+	
+	// Make names clickable
+	$content = preg_replace("~@(\w+)~",  "<a href=\"https://twitter.com/\\1\" target=\"_blank\">@\\1</a>", $content);
+	$content = preg_replace("~^(\w+):~", "<a href=\"https://twitter.com/\\1\" target=\"_blank\">@\\1</a>:", $content);
+
+	// Make tags clickable
+	$content = preg_replace("/#(\w+)/", "<a href=\"https://twitter.com/search?q=%23\\1\" target=\"_blank\">#\\1</a>", $content);
+
+	// Make URLs clickable
+	$content = preg_replace("#(^|[\n ])([\w]+?://[\w]+[^ \"\n\r\t< ]*)#", "\\1<a href=\"\\2\" target=\"_blank\">\\2</a>", $content);
+	$content = preg_replace("#(^|[\n ])((www|ftp)\.[^ \"\t\n\r< ]*)#", "\\1<a href=\"http://\\2\" target=\"_blank\">\\2</a>", $content);
+
+	$post['post_content'] = $content;
+	return $post;
 }
