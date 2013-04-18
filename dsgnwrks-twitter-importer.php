@@ -194,7 +194,6 @@ function dw_tweet_messages( $tweets, $opts, $prevmessages = array() ) {
 
 function dw_tweet_loop( $tweets = array(), $opts = array() ) {
 
-	$limit = 5; // test
 	foreach ( $tweets as $tweet ) {
 
 		if ( $opts['date-filter'] > strtotime( $tweet->created_at ) ) {
@@ -231,7 +230,6 @@ function dw_tweet_loop( $tweets = array(), $opts = array() ) {
 
 		$messages['messages'][] = dw_tweet_save( $tweet, $opts );
 		
-		if ( --$limit <= 0 ) break; // test
 	}
 	return !empty( $messages ) ? $messages : array();
 }
@@ -340,8 +338,11 @@ function dw_tweet_authenticate( $user, $return = true ) {
 
 	$feed_url = 'http://twitter.com/statuses/user_timeline/'. $user .'.rss';
 	$feed_url = 'https://api.twitter.com/1/statuses/user_timeline.json?screen_name='. $user .'&count=200';
+
+	// Don't verify SSL certificate, as this fails from my work PC...
 	// $response = wp_remote_get( $feed_url );
-	$response = wp_remote_get( $feed_url, array( 'sslverify' => false ) ); // test
+	$response = wp_remote_get( $feed_url, array( 'sslverify' => false ) );
+
 	// wp_die( '<pre>'. htmlentities( print_r( $response, true ) ) .'</pre>' );
 	$body = wp_remote_retrieve_body( $response );
 	// $body = simplexml_load_string( $body, "SimpleXMLElement", LIBXML_NOCDATA );
