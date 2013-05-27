@@ -39,9 +39,8 @@ function dw_twitter_users_validate( $opts ) {
 		$validated = dw_twitter_user_validate( $opts['user'] );
 
 		if ( $validated ) {
-			$response = dw_tweet_authenticate( $opts['user'], false );
 
-			$opts['badauth'] = $response['badauth'];
+			$opts['badauth'] = dw_tweet_authenticate( $opts['user'] ) ? 'good' : 'error';
 
 			$settings = get_option( 'dsgnwrks_tweet_options' );
 			$settings['username'] = $opts['user'];
@@ -138,15 +137,15 @@ function dw_twitter_import() {
 	$id = $_POST['dsgnwrks_tweet_options']['username'];
 	if ( !isset( $_GET['tweetimport'] ) || empty( $id ) ) return;
 
-	$response = dw_tweet_authenticate( $id );
+	$response = dw_tweet_fetch( $id );
 
-	if ( empty( $response['response'] ) ) {
+	if ( empty( $response ) ) {
 		echo '<div id="message" class="error"><p>Couldn\'t find a twitter feed. Please check the username.</p></div>';
 		update_option( 'dsgnwrks_tweet_options', $opts );
 		return;
 	} else {
 
-		$tweets = apply_filters( 'dw_twitter_api', $response['response'] );
+		$tweets = apply_filters( 'dw_twitter_api', $response );
 	}
 
 	echo '<div id="message" class="updated">';
@@ -331,10 +330,9 @@ function dw_tweet_filter( $opt = '', $filter = '', $else = '' ) {
 	else return esc_attr( $opt );
 }
 
-function dw_tweet_authenticate( $user, $return = true ) {
+function dw_tweet_authenticate( $user ) {
 
-	$feed_url = 'http://twitter.com/statuses/user_timeline/'. $user .'.rss';
-	$feed_url = 'https://api.twitter.com/1/statuses/user_timeline.json?screen_name='. $user .'&count=200';
+	$feed_url = 'https://api.twitter.com/1/statuses/user_timeline.json?screen_name='. $user .'&count=1';
 
 	// Don't verify SSL certificate, as this fails from my work PC...
 	// $response = wp_remote_get( $feed_url );
@@ -342,22 +340,33 @@ function dw_tweet_authenticate( $user, $return = true ) {
 
 	// wp_die( '<pre>'. htmlentities( print_r( $response, true ) ) .'</pre>' );
 	$body = wp_remote_retrieve_body( $response );
-	// $body = simplexml_load_string( $body, "SimpleXMLElement", LIBXML_NOCDATA );
 	$body = json_decode( $body );
 
 	if ( $body && !empty( $response['headers']['status'] ) && $response['headers']['status'] == '200 OK' ) {
-		if ( $return == false ) $body = null;
-		$badauth = 'good';
+		return true;
 	} else {
-		$body = null;
-		$badauth = 'error';
+		return false;
 	}
+}
 
-	return array(
-		'response' => $body,
-		'badauth' => $badauth,
-	);
+function dw_tweet_fetch( $user ) {
 
+	$feed_url = 'http://twitter.com/statuses/user_timeline/'. $user .'.rss';
+	$feed_url = 'https://api.twitter.com/1/statuses/user_timeline.json?screen_name='. $user .'&count=3';
+
+	// Don't verify SSL certificate, as this fails from my work PC...
+	// $response = wp_remote_get( $feed_url );
+	$response = wp_remote_get( $feed_url, array( 'sslverify' => false ) );
+
+	// wp_die( '<pre>'. htmlentities( print_r( $response, true ) ) .'</pre>' );
+	$body = wp_remote_retrieve_body( $response );
+	$body = json_decode( $body );
+
+	if ( $body && !empty( $response['headers']['status'] ) && $response['headers']['status'] == '200 OK' ) {
+		return $body;
+	} else {
+		return null;
+	}
 }
 
 add_filter('dw_twitter_post_presave', 'dw_format_tweet_post');
