@@ -42,7 +42,6 @@ function dw_twitter_users_validate( $opts ) {
 			$response = dw_tweet_authenticate( $opts['user'], false );
 
 			$opts['badauth'] = $response['badauth'];
-			$opts['noauth'] = $response['noauth'];
 
 			$settings = get_option( 'dsgnwrks_tweet_options' );
 			$settings['username'] = $opts['user'];
@@ -51,7 +50,6 @@ function dw_twitter_users_validate( $opts ) {
 		} else {
 			// unset( $opts['user'] );
 			$opts['badauth'] = 'error';
-			$opts['noauth'] = true;
 		}
 	}
 	return $opts;
@@ -144,7 +142,6 @@ function dw_twitter_import() {
 
 	if ( empty( $response['response'] ) ) {
 		echo '<div id="message" class="error"><p>Couldn\'t find a twitter feed. Please check the username.</p></div>';
-		$opts[$id]['noauth'] = true;
 		update_option( 'dsgnwrks_tweet_options', $opts );
 		return;
 	} else {
@@ -350,18 +347,15 @@ function dw_tweet_authenticate( $user, $return = true ) {
 
 	if ( $body && !empty( $response['headers']['status'] ) && $response['headers']['status'] == '200 OK' ) {
 		if ( $return == false ) $body = null;
-		$noauth = '';
 		$badauth = 'good';
 	} else {
 		$body = null;
 		$badauth = 'error';
-		$noauth = true;
 	}
 
 	return array(
 		'response' => $body,
 		'badauth' => $badauth,
-		'noauth' => $noauth,
 	);
 
 }
